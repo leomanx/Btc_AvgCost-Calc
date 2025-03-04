@@ -2,14 +2,14 @@ import streamlit as st
 import requests
 
 # ตั้งชื่อ/หัวข้อให้หน้าเว็บ
-st.title("BTC Average Cost Calculator (Prototype by BTC Only)")
+st.title("BTC Average Cost Calculator")
 
 # ส่วนกรอกข้อมูล (Input)
 st.subheader("ใส่ข้อมูลปัจจุบัน")
-current_btc = st.number_input("Current BTC Holdings (จำนวน BTC ที่ถืออยู่)", min_value=0.0, value=0.0)
-current_invested_usd = st.number_input("Total Invested Amount (USD) so far (เงินที่ลงทุนไปแล้ว)", min_value=0.0, value=0.0)
-new_usd_buy = st.number_input("Amount you want to buy (USD) (จำนวนเงินที่ต้องการซื้อเพิ่ม)", min_value=0.0, value=0.0)
-avg_usd_thb = st.number_input("Average USD/THB from previous buys (ค่าเฉลี่ย USD/THB เดิม)", min_value=0.0, value=0.0)
+current_btc = st.number_input("Current BTC Holdings (จำนวนหน่วย BTC ที่ถืออยู่)", min_value=0.0, value=0.0)
+current_invested_usd = st.number_input("Total Invested Amount in $USD (เงินที่ลงทุนไปแล้ว)", min_value=0.0, value=0.0)
+new_usd_buy = st.number_input("Budget to Buy more (USD) (จำนวนเงินที่ต้องการซื้อเพิ่ม)", min_value=0.0, value=0.0)
+avg_usd_thb = st.number_input("Avg. USD/THB from previous buy (ค่าเฉลี่ย USD/THB เดิม)", min_value=0.0, value=0.0)
 
 # เมื่อกดปุ่ม "Calculate" ให้ทำงานคำนวณทั้งหมด
 if st.button("Calculate"):
