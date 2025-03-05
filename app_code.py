@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.express as px
 import numpy as np
 import yfinance as yf
-from sklearn.cluster import KMeans
 
 # --- Google Analytics Integration ---
 GA_SCRIPT = """
@@ -59,7 +58,9 @@ else:
 
 # --- คำนวณและแสดงผลเมื่อกดปุ่ม "Calculate" ---
 if st.button("Calculate"):
-    # ดึงราคาจาก CoinGecko พร้อมตรวจสอบข้อมูล
+    # ----------------------------------------------
+    # 1) ดึงราคาปัจจุบันจาก CoinGecko
+    # ----------------------------------------------
     btc_price_api = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
     btc_price_data = requests.get(btc_price_api).json()
     if 'bitcoin' in btc_price_data and 'usd' in btc_price_data['bitcoin']:
@@ -67,8 +68,31 @@ if st.button("Calculate"):
     else:
         st.error("Error: Could not retrieve BTC price from API. Please try again later.")
         st.stop()
-    
-    # --- คำนวณ BTC Portfolio ---
+
+    # ----------------------------------------------
+    # 2) ตรวจสอบ SMA 200 วัน (จาก Yahoo Finance)
+    # ----------------------------------------------
+    # ดึงข้อมูลยาวพอ (เช่น 400 วัน) เพื่อคำนวณ SMA 200 วัน
+    data_sma = yf.download("BTC-USD", period="400d", interval="1d", progress=False)
+    if data_sma.empty or len(data_sma) < 200:
+        st.write("ไม่สามารถคำนวณ SMA 200 วันได้ (ข้อมูลไม่เพียงพอ)")
+        sma200 = None
+    else:
+        data_sma['SMA200'] = data_sma['Close'].rolling(200).mean()
+        sma200 = data_sma['SMA200'].iloc[-1]
+        st.write(f"**200-day SMA:** ${sma200:,.2f}")
+
+        # เช็คความใกล้เคียงภายใน 5% ของ SMA 200 วัน
+        price_diff_pct = (btc_price - sma200) / sma200 * 100
+        if abs(price_diff_pct) < 5:
+            if price_diff_pct > 0:
+                st.warning(f"BTC Price อยู่เหนือ SMA 200 วันแล้ว แต่ห่างเพียง {price_diff_pct:.2f}% (เข้าใกล้กันน้อยกว่า 5%)")
+            else:
+                st.warning(f"BTC Price อยู่ต่ำกว่า SMA 200 วันประมาณ {abs(price_diff_pct):.2f}% (เข้าใกล้กันน้อยกว่า 5%)")
+
+    # ----------------------------------------------
+    # 3) คำนวณ BTC Portfolio
+    # ----------------------------------------------
     previous_avg_price_usd = current_invested_usd / current_btc if current_btc != 0 else 0
     new_btc = new_usd_buy / btc_price if btc_price != 0 else 0
     total_btc = current_btc + new_btc
@@ -78,7 +102,9 @@ if st.button("Calculate"):
     rising_percent = ((new_avg_price_usd - previous_avg_price_usd) / previous_avg_price_usd * 100
                       if previous_avg_price_usd != 0 else 0)
     
-    # --- แสดงผลการคำนวณ ---
+    # ----------------------------------------------
+    # 4) แสดงผลการคำนวณ
+    # ----------------------------------------------
     st.subheader("ผลการคำนวณ")
     st.write(f"**Real-time BTC Price:** ${btc_price:,.2f}")
     st.write(f"**Previous Avg. Buy Price:** ${previous_avg_price_usd:,.2f}/BTC")
@@ -105,9 +131,10 @@ if st.button("Calculate"):
     fig_btc = px.pie(df_btc, values="Amount", names="Type", title="สัดส่วน BTC Holdings")
     st.plotly_chart(fig_btc)
     
-    # --- แนะนำ Entry Point โดยใช้ข้อมูล Volatility ---
+    # ----------------------------------------------
+    # 5) แนะนำ Entry Point โดยใช้ข้อมูล Volatility
+    # ----------------------------------------------
     st.subheader("แนะนำจุดเข้าซื้อ (Entry Price Range)")
-    # ใช้ Weekly Volatility สำหรับการคำนวณ Entry Range หากมีข้อมูล ถ้าไม่มีก็ใช้ค่า default 5%
     used_volatility = weekly_volatility if weekly_volatility is not None else 5.0
     low_entry = btc_price * (1 - used_volatility/100)
     high_entry = btc_price * (1 + used_volatility/100)
@@ -129,7 +156,9 @@ if st.button("Calculate"):
     )
     st.plotly_chart(fig_zone)
     
-    # --- กราฟ Sensitivity Analysis ---
+    # ----------------------------------------------
+    # 6) กราฟ Sensitivity Analysis
+    # ----------------------------------------------
     investment_range = np.linspace(0, new_usd_buy * 2, 50)
     new_avg_prices = []
     portfolio_values = []
@@ -154,4 +183,3 @@ if st.button("Calculate"):
                       title="ผลกระทบของการลงทุนเพิ่มเติม",
                       labels={"value": "ค่า (USD)", "variable": "ตัวชี้วัด"})
     st.plotly_chart(fig_sim)
-
