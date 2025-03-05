@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 import numpy as np
 import yfinance as yf
-from sklearn.cluster import KMeans  # ต้องติดตั้ง scikit-learn ด้วย pip install scikit-learn
+from sklearn.cluster import KMeans
 
 # --- Google Analytics Integration ---
 GA_SCRIPT = """
