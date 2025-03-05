@@ -154,32 +154,4 @@ if st.button("Calculate"):
                       title="ผลกระทบของการลงทุนเพิ่มเติม",
                       labels={"value": "ค่า (USD)", "variable": "ตัวชี้วัด"})
     st.plotly_chart(fig_sim)
-    
-    # --- Price Cluster Analysis ---
-    st.subheader("Price Cluster Analysis (30-day)")
-    data_cluster = yf.download("BTC-USD", period="30d", interval="1d", progress=False)
-    if not data_cluster.empty and len(data_cluster) >= 3:
-        prices_cluster = data_cluster['Close'].values.reshape(-1, 1)
-        n_clusters = 3
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-        kmeans.fit(prices_cluster)
-        cluster_centers = kmeans.cluster_centers_.flatten()
-        labels = kmeans.labels_
-        
-        # แปลง index และ Series เป็น list เพื่อให้แน่ใจว่ามีความยาวเดียวกัน
-        df_cluster = pd.DataFrame({
-            "Date": list(data_cluster.index),
-            "Close": data_cluster['Close'].tolist(),
-            "Cluster": labels.tolist()
-        })
-        
-        fig_cluster = px.scatter(df_cluster, x="Date", y="Close", color="Cluster", 
-                                 title="Historical Price Clusters (30 days)")
-        # วาด cluster centers เป็นเส้นแนวนอน
-        for center in cluster_centers:
-            fig_cluster.add_hline(y=center, line_dash="dash", line_color="red",
-                                    annotation_text=f"Cluster Center: {center:.2f}", annotation_position="top left")
-        st.plotly_chart(fig_cluster)
-    else:
-        st.write("ไม่สามารถดึงข้อมูลสำหรับ Price Clustering ได้")
 
