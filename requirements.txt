@@ -2,3 +2,6 @@ streamlit
 requests
 pandas
 plotly
+numpy
+yfinance
+scikit-learn
