@@ -16,6 +16,23 @@ GA_SCRIPT = """
 """
 st.components.v1.html(GA_SCRIPT, height=0, scrolling=False)
 
+# --- ฟังก์ชันคำนวณ Weekly Volatility ---
+def get_weekly_volatility():
+    try:
+        # ดึงข้อมูลราคาของ BTC ในช่วง 7 วันที่ผ่านมา
+        history_api = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=7"
+        history_data = requests.get(history_api).json()
+        # ดึงเฉพาะราคาจากข้อมูลที่ได้ (timestamp, price)
+        prices = [price[1] for price in history_data['prices']]
+        # คำนวณ return ระหว่างวัน
+        returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
+        # คำนวณความผันผวนเป็น standard deviation ของ returns แล้วแปลงเป็น %
+        volatility = np.std(returns) * 100
+    except Exception as e:
+        # กรณีมีปัญหาให้ใช้ค่า default 5%
+        volatility = 5.0
+    return volatility
+
 # --- ตั้งชื่อหน้าเว็บ ---
 st.title("BTC Average Cost Calculator")
 
@@ -25,6 +42,11 @@ current_btc = st.number_input("Current BTC Holdings (จำนวนหน่ว
 current_invested_usd = st.number_input("Total Invested Amount in $USD (เงินที่ลงทุนไปแล้ว)", min_value=0.0, value=0.0)
 new_usd_buy = st.number_input("Budget to Buy more (USD) (จำนวนเงินที่ต้องการซื้อเพิ่ม)", min_value=0.0, value=0.0)
 avg_usd_thb = st.number_input("Avg. USD/THB from previous buy (ค่าเฉลี่ย USD/THB เดิม)", min_value=0.0, value=0.0)
+
+# --- ดึงค่า Weekly Volatility มาใช้คำนวณ (ไม่ต้องให้ผู้ใช้ป้อนเอง) ---
+weekly_volatility = get_weekly_volatility()
+st.subheader("ข้อมูล Volatility")
+st.write(f"**Weekly Volatility (คำนวณจากข้อมูล 7 วันที่ผ่านมา):** {weekly_volatility:.2f}%")
 
 # --- คำนวณและแสดงผลเมื่อกดปุ่ม "Calculate" ---
 if st.button("Calculate"):
@@ -100,8 +122,31 @@ if st.button("Calculate"):
     )
     st.plotly_chart(fig_btc)
     
+    # --- แนะนำ Entry Point โดยใช้ Weekly Volatility ---
+    st.subheader("แนะนำจุดเข้าซื้อ (Entry Price Range)")
+    # คำนวณ Range จุดเข้าซื้อโดยใช้ weekly_volatility ที่คำนวณได้
+    low_entry = btc_price * (1 - weekly_volatility/100)
+    high_entry = btc_price * (1 + weekly_volatility/100)
+    
+    st.write(f"จากราคาปัจจุบันที่ ${btc_price:,.2f}")
+    st.write(f"แนะนำให้พิจารณาจุดเข้าซื้อในช่วง: **${low_entry:,.2f} - ${high_entry:,.2f}**")
+    
+    # --- แสดงกราฟ Entry Range ด้วย Plotly ---
+    df_zone = pd.DataFrame({
+        "Price": [low_entry, btc_price, high_entry],
+        "Zone": ["Lower Bound", "Current Price", "Upper Bound"]
+    })
+    fig_zone = px.scatter(df_zone, x="Price", y=["Zone"],
+                          title="Recommended Entry Price Range",
+                          labels={"Price": "Price (USD)", "value": "Zone"})
+    fig_zone.add_shape(
+        type="rect",
+        x0=low_entry, y0=-0.5, x1=high_entry, y1=0.5,
+        fillcolor="LightSalmon", opacity=0.3, line_width=0
+    )
+    st.plotly_chart(fig_zone)
+    
     # --- กราฟ Sensitivity Analysis ---
-    # สร้างช่วงการลงทุนเพิ่มเติม จาก 0 ถึง 2 เท่าของ new_usd_buy ที่ผู้ใช้กรอก
     investment_range = np.linspace(0, new_usd_buy * 2, 50)
     new_avg_prices = []
     portfolio_values = []
